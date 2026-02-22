@@ -12,35 +12,74 @@ Tech stack:
 - **Auth:** JWT-based authentication + role-based authorization
 - **Security:** Helmet, CORS allowlist, rate limiting, HPP, request validation
 
-## Repo structure
+## Full repo structure (expanded)
 
 ```txt
 .
-├── backend
-│   ├── prisma
+├── .github/
+│   └── workflows/
+│       └── ci.yml
+├── .gitignore
+├── backend/
+│   ├── .env.example
+│   ├── .eslintrc.cjs
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── prisma/
 │   │   ├── schema.prisma
 │   │   └── seed.ts
-│   ├── src
+│   ├── src/
 │   │   ├── app.ts
 │   │   ├── server.ts
 │   │   ├── config/
+│   │   │   ├── env.ts
+│   │   │   └── prisma.ts
 │   │   ├── controllers/
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── order.controller.ts
+│   │   │   └── product.controller.ts
 │   │   ├── middleware/
+│   │   │   ├── auth.ts
+│   │   │   ├── error-handler.ts
+│   │   │   └── validate.ts
 │   │   ├── routes/
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── order.routes.ts
+│   │   │   └── product.routes.ts
 │   │   ├── services/
+│   │   │   └── payment.service.ts
+│   │   ├── types/
+│   │   │   └── express.d.ts
 │   │   └── utils/
-│   └── .env.example
-├── frontend
-│   ├── src
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── context/
-│   │   ├── pages/
-│   │   ├── routes/
-│   │   └── styles/
-│   └── .env.example
+│   │       └── jwt.ts
+│   └── tsconfig.json
 ├── docker-compose.yml
-└── README.md
+├── frontend/
+│   ├── .env.example
+│   ├── Dockerfile
+│   ├── index.html
+│   ├── package.json
+│   ├── src/
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   ├── api/
+│   │   │   └── client.js
+│   │   ├── components/
+│   │   │   └── ProductCard.jsx
+│   │   ├── context/
+│   │   │   ├── AuthContext.jsx
+│   │   │   └── CartContext.jsx
+│   │   ├── pages/
+│   │   │   ├── CheckoutPage.jsx
+│   │   │   ├── HomePage.jsx
+│   │   │   ├── LoginPage.jsx
+│   │   │   └── OrdersPage.jsx
+│   │   ├── routes/
+│   │   │   └── AppRoutes.jsx
+│   │   └── styles/
+│   │       └── global.css
+│   └── vite.config.js
+└── package.json
 ```
 
 ## Local setup
