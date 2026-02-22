@@ -1,18 +1,20 @@
 import type { Request, Response } from 'express';
-import { Product } from '../models/Product.js';
+import { prisma } from '../config/prisma.js';
 
 export async function listProducts(req: Request, res: Response) {
   const { category, search } = req.query;
+  const products = await prisma.product.findMany({
+    where: {
+      category: typeof category === 'string' ? category as 'GROCERIES' | 'NUTS_SPICES' : undefined,
+      name: typeof search === 'string' ? { contains: search, mode: 'insensitive' } : undefined
+    },
+    orderBy: { createdAt: 'desc' }
+  });
 
-  const query: Record<string, unknown> = {};
-  if (typeof category === 'string') query.category = category;
-  if (typeof search === 'string') query.name = { $regex: search, $options: 'i' };
-
-  const products = await Product.find(query).sort({ createdAt: -1 });
   return res.json(products);
 }
 
 export async function createProduct(req: Request, res: Response) {
-  const product = await Product.create(req.body);
+  const product = await prisma.product.create({ data: req.body });
   return res.status(201).json(product);
 }

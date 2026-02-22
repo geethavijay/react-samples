@@ -1,61 +1,68 @@
 import type { Request, Response } from 'express';
-import mongoose from 'mongoose';
-import { Order } from '../models/Order.js';
-import { Product } from '../models/Product.js';
-import { createPaymentOrder } from '../services/payment.service.js';
+import { prisma } from '../config/prisma.js';
+import { createCheckoutSession } from '../services/payment.service.js';
+
+class OrderValidationError extends Error {}
 
 export async function createOrder(req: Request, res: Response) {
   const userId = req.user?.id;
   if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-  const { items, shippingAddress } = req.body as {
-    items: { productId: string; quantity: number }[];
-    shippingAddress: string;
-  };
-
-  const session = await mongoose.startSession();
-
   try {
-    session.startTransaction();
+    const { items, shippingAddress } = req.body as {
+      items: { productId: string; quantity: number }[];
+      shippingAddress: string;
+    };
 
-    const productIds = items.map((item) => item.productId);
-    const products = await Product.find({ _id: { $in: productIds } }).session(session);
+    const createdOrder = await prisma.$transaction(async (tx) => {
+      const productIds = items.map((i) => i.productId);
+      const products = await tx.product.findMany({ where: { id: { in: productIds } } });
 
-    const mappedItems = items.map((item) => {
-      const product = products.find((p) => String(p._id) === item.productId);
-      if (!product || product.stock < item.quantity) {
-        throw new Error(`Product unavailable: ${item.productId}`);
+      const mappedItems = items.map((item) => {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product || product.stock < item.quantity) {
+          throw new OrderValidationError(`Product unavailable: ${item.productId}`);
+        }
+
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: product.priceCents
+        };
+      });
+
+      const totalCents = mappedItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
+
+      const order = await tx.order.create({
+        data: {
+          userId,
+          shippingAddress,
+          totalCents,
+          items: {
+            create: mappedItems
+          }
+        },
+        include: { items: true }
+      });
+
+      for (const item of mappedItems) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } }
+        });
       }
 
-      return {
-        productId: product._id,
-        quantity: item.quantity,
-        unitPrice: product.priceCents
-      };
+      return order;
     });
 
-    const totalCents = mappedItems.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0);
-
-    const order = await Order.create(
-      [{ userId, shippingAddress, totalCents, items: mappedItems }],
-      { session }
-    );
-
-    for (const item of mappedItems) {
-      await Product.updateOne({ _id: item.productId }, { $inc: { stock: -item.quantity } }).session(session);
+    const payment = await createCheckoutSession(createdOrder.totalCents, createdOrder.id);
+    return res.status(201).json({ order: createdOrder, payment });
+  } catch (error) {
+    if (error instanceof OrderValidationError) {
+      return res.status(400).json({ message: error.message });
     }
 
-    await session.commitTransaction();
-
-    const payment = await createPaymentOrder(totalCents, String(order[0]._id));
-    await Order.updateOne({ _id: order[0]._id }, { razorpayOrderId: payment.id }).exec();
-
-    return res.status(201).json({ order: order[0], payment });
-  } catch (error) {
-    await session.abortTransaction();
-    return res.status(400).json({ message: error instanceof Error ? error.message : 'Order failed' });
-  } finally {
-    session.endSession();
+    throw error;
   }
 }
 
@@ -63,7 +70,11 @@ export async function listOrders(req: Request, res: Response) {
   const user = req.user;
   if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-  const query = user.role === 'admin' ? {} : { userId: user.id };
-  const orders = await Order.find(query).populate('items.productId').sort({ createdAt: -1 });
+  const orders = await prisma.order.findMany({
+    where: user.role === 'admin' ? undefined : { userId: user.id },
+    include: { items: { include: { product: true } } },
+    orderBy: { createdAt: 'desc' }
+  });
+
   return res.json(orders);
 }

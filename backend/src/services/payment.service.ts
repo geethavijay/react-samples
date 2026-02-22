@@ -1,21 +1,21 @@
-import Razorpay from 'razorpay';
+import Stripe from 'stripe';
 import { env } from '../config/env.js';
 
-const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
-  ? new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET })
+const stripe = env.STRIPE_SECRET_KEY
+  ? new Stripe(env.STRIPE_SECRET_KEY)
   : null;
 
-export async function createPaymentOrder(amountCents: number, receipt: string) {
-  if (!razorpay) {
-    return { provider: 'mock', id: `mock_${receipt}`, amount: amountCents };
+export async function createCheckoutSession(amountCents: number, orderId: string) {
+  if (!stripe) {
+    return { provider: 'mock', clientSecret: `mock_${orderId}` };
   }
 
-  const order = await razorpay.orders.create({
+  const intent = await stripe.paymentIntents.create({
     amount: amountCents,
-    currency: 'INR',
-    receipt,
-    payment_capture: true
+    currency: 'usd',
+    metadata: { orderId },
+    automatic_payment_methods: { enabled: true }
   });
 
-  return { provider: 'razorpay', ...order };
+  return { provider: 'stripe', clientSecret: intent.client_secret };
 }
