@@ -1,0 +1,10 @@
+node_modules
+.env
+.env.*
+!.env.example
+backend/dist
+frontend/.next
+frontend/out
+coverage
+.DS_Store
+npm-debug.log*

@@ -1,0 +1,11 @@
+{
+  "name": "grocery-marketplace-mvp",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": ["backend", "frontend"],
+  "scripts": {
+    "dev": "bash -lc 'npm run dev --workspace backend & npm run dev --workspace frontend & wait'",
+    "build": "npm run build --workspace backend && npm run build --workspace frontend",
+    "lint": "npm run lint --workspace backend && npm run lint --workspace frontend"
+  }
+}
